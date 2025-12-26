@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- 手机端“像 App” -->
+  <meta name="viewport"
+        content="width=device-width, height=device-height,
+                 initial-scale=1.0, user-scalable=no">
+
+  <title>Pronunciation</title>
+
+  <!-- Azure Speech SDK -->
+  <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", sans-serif;
+    }
+
+    #app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    #text {
+      font-size: 26px;
+      line-height: 1.4;
+      margin-bottom: 14px;
+    }
+
+    #status {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 12px;
+    }
+
+    #score {
+      font-size: 22px;
+      margin-top: 10px;
+      color: #222;
+    }
+
+    #hint {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #999;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="text"></div>
+    <div id="status">准备录音…</div>
+    <div id="score"></div>
+    <div id="hint">评测完成后，返回 Anki 继续学习</div>
+  </div>
+
+  <script>
+    /************* 配置区 *************/
+    const AZURE_KEY = "4caI4L1m6NJW3szOX0d2EDkCT9OqMRw2E1tFwzQVSDWNHMwNjWeRJQQJ99BLACqBBLyXJ3w3AAAYACOG87ve";
+    const AZURE_REGION = "southeastasiaYOUR_REGION";
+    const LANGUAGE = "en-US";
+    /**********************************/
+
+    const params = new URLSearchParams(location.search);
+    const text = params.get("text") || params.get("word") || "";
+
+    document.getElementById("text").innerText = text;
+
+    function startAssessment() {
+      document.getElementById("status").innerText = "正在录音…";
+
+      const speechConfig =
+        SpeechSDK.SpeechConfig.fromSubscription(AZURE_KEY, AZURE_REGION);
+      speechConfig.speechRecognitionLanguage = LANGUAGE;
+
+      const audioConfig =
+        SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+
+      const recognizer =
+        new SpeechSDK.SpeechRecognizer(speechConfig, audioConfig);
+
+      const pronunciationConfig =
+        new SpeechSDK.PronunciationAssessmentConfig(
+          text,
+          SpeechSDK.PronunciationAssessmentGradingSystem.HundredMark,
+          SpeechSDK.PronunciationAssessmentGranularity.Phoneme,
+          true
+        );
+
+      pronunciationConfig.applyTo(recognizer);
+
+      recognizer.recognized = (_, e) => {
+        if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+          const result =
+            SpeechSDK.PronunciationAssessmentResult.fromResult(e.result);
+
+          document.getElementById("status").innerText = "评测完成";
+          document.getElementById("score").innerText =
+            "发音得分：" + Math.round(result.pronunciationScore);
+
+          recognizer.stopContinuousRecognitionAsync();
+        }
+      };
+
+      recognizer.startContinuousRecognitionAsync();
+    }
+
+    // 关键：自动开始（无感）
+    window.addEventListener("load", startAssessment);
+  </script>
+</body>
+</html>
